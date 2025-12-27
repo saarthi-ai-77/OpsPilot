@@ -11,7 +11,7 @@ export default function Index() {
 
   useEffect(() => {
     if (user) {
-      navigate('/submit');
+      navigate(user.role === 'manager' ? '/dashboard' : '/submit');
     }
   }, [user, navigate]);
 

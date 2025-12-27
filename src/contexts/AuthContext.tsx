@@ -22,18 +22,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isMagicLinkSent, setIsMagicLinkSent] = useState(false);
 
   useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        fetchUserMetadata(session.user.email!, session.user.id);
+        await syncUser(session.user);
       } else {
         setIsLoading(false);
       }
-    });
+    };
+
+    initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        await handleSignedIn(session);
+      console.log('Auth event:', event);
+      if (session) {
+        await syncUser(session.user);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setIsLoading(false);
@@ -43,94 +46,112 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleSignedIn = async (session: any) => {
-    const email = session.user.email;
-    const authId = session.user.id;
-
-    // Check if user exists in members table
-    const { data: existingMember } = await supabase
-      .from('members')
-      .select('id, email, team_id')
-      .eq('email', email)
-      .single();
-
-    if (existingMember) {
-      await fetchUserMetadata(email, authId);
-    } else {
-      // Check for pending signup
-      const pendingStr = localStorage.getItem('opspilot_pending_signup');
-      if (pendingStr) {
-        const pending = JSON.parse(pendingStr);
-        if (pending.email === email) {
-          await completeRegistration(pending, authId);
-        } else {
-          setIsLoading(false);
-        }
-      } else {
-        setIsLoading(false);
-      }
-    }
-  };
-
-  const fetchUserMetadata = async (email: string, authId: string) => {
+  const syncUser = async (authUser: any) => {
     setIsLoading(true);
+    const email = authUser.email;
+    const authId = authUser.id;
+
     try {
-      const { data: member } = await supabase
+      // 1. Try to find the member
+      const { data: member, error: memberError } = await supabase
         .from('members')
         .select('id, email, team_id')
         .eq('email', email)
         .single();
 
       if (member) {
-        const { data: team } = await supabase
-          .from('teams')
-          .select('manager_email')
-          .eq('id', member.team_id)
-          .single();
-
-        const role = team?.manager_email === email ? 'manager' : 'member';
-
-        setUser({
-          id: member.id,
-          email: member.email,
-          team_id: member.team_id,
-          role: role,
-        });
+        await finalizeLogin(member);
+      } else {
+        // 2. No member record? Check for pending signup
+        const pendingStr = localStorage.getItem('opspilot_pending_signup');
+        if (pendingStr) {
+          const pending = JSON.parse(pendingStr);
+          if (pending.email.toLowerCase() === email.toLowerCase()) {
+            await completeRegistration(pending, authId);
+          } else {
+            setIsLoading(false);
+          }
+        } else {
+          setIsLoading(false);
+        }
       }
-    } catch (error) {
-      console.error('Error fetching user metadata:', error);
-    } finally {
+    } catch (err) {
+      console.error('Sync user error:', err);
       setIsLoading(false);
     }
   };
 
+  const finalizeLogin = async (member: any) => {
+    const { data: team } = await supabase
+      .from('teams')
+      .select('manager_email')
+      .eq('id', member.team_id)
+      .single();
+
+    const role = team?.manager_email === member.email ? 'manager' : 'member';
+
+    setUser({
+      id: member.id,
+      email: member.email,
+      team_id: member.team_id,
+      role: role,
+    });
+    setIsLoading(false);
+  };
+
   const completeRegistration = async (pending: any, authId: string) => {
+    console.log('Completing registration for:', pending.email);
     try {
       let finalTeamId = pending.teamId;
 
       if (pending.isManager) {
-        const { data: newTeam } = await supabase
+        const { data: newTeam, error: teamError } = await supabase
           .from('teams')
           .insert({ name: pending.teamName, manager_email: pending.email })
           .select()
           .single();
+
+        if (teamError) throw teamError;
         if (newTeam) finalTeamId = newTeam.id;
       }
 
-      const { data: newMember } = await supabase
+      // We use the authId as the primary key if the table allows, 
+      // but to be safe and compatible with existing auto-inc pk, 
+      // we check if 'id' insert is required or allowed.
+      // Trying to insert without id first to allow db-side generation 
+      // of serial pks, or providing it if the table is set for uuid pks.
+      const memberInsert: any = {
+        email: pending.email,
+        team_id: finalTeamId
+      };
+
+      // If authId is required as PK, we include it. 
+      // If the user's DB has a serial PK, this might fail or be ignored.
+      memberInsert.id = authId;
+
+      const { data: newMember, error: memberError } = await supabase
         .from('members')
-        .insert({
-          id: authId, // Use Supabase Auth ID as primary key
-          email: pending.email,
-          team_id: finalTeamId
-        })
+        .insert(memberInsert)
         .select()
         .single();
 
-      if (newMember) {
-        localStorage.removeItem('opspilot_pending_signup');
-        await fetchUserMetadata(pending.email, authId);
+      if (memberError) {
+        console.error('Member creation error, trying without explicit ID:', memberError);
+        // Fallback: try inserting without explicit ID in case it's a serial PK
+        delete memberInsert.id;
+        const { data: retryMember, error: retryError } = await supabase
+          .from('members')
+          .insert(memberInsert)
+          .select()
+          .single();
+
+        if (retryError) throw retryError;
+        if (retryMember) await finalizeLogin(retryMember);
+      } else if (newMember) {
+        await finalizeLogin(newMember);
       }
+
+      localStorage.removeItem('opspilot_pending_signup');
     } catch (error) {
       console.error('Error completing registration:', error);
       setIsLoading(false);
