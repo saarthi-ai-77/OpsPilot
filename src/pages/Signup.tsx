@@ -10,21 +10,37 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function Signup() {
     const [isManager, setIsManager] = useState(true);
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [teamName, setTeamName] = useState('');
     const [teamId, setTeamId] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const { register, isMagicLinkSent } = useAuth();
+    const { user, register } = useAuth();
     const navigate = useNavigate();
     const { toast } = useToast();
+
+    useEffect(() => {
+        if (user) {
+            navigate(user.role === 'manager' ? '/dashboard' : '/submit');
+        }
+    }, [user, navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!email.trim()) {
+        if (!email.trim() || !password.trim()) {
             toast({
-                title: 'Email required',
-                description: 'Please enter your email to get started.',
+                title: 'Credentials required',
+                description: 'Please enter both email and password.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        if (password.length < 6) {
+            toast({
+                title: 'Password too short',
+                description: 'Password must be at least 6 characters.',
                 variant: 'destructive',
             });
             return;
@@ -53,6 +69,7 @@ export default function Signup() {
         try {
             const result = await register({
                 email,
+                password,
                 isManager,
                 teamName: isManager ? teamName : undefined,
                 teamId: !isManager ? teamId : undefined,
@@ -60,10 +77,10 @@ export default function Signup() {
 
             if (result.success) {
                 toast({
-                    title: isManager ? 'Team Successfully Created!' : 'Successfully Joined Team!',
-                    description: 'Welcome to OpsPilot AI.',
+                    title: 'Account created!',
+                    description: isManager ? 'Your team hub is ready.' : 'You have joined the team.',
                 });
-                navigate(isManager ? '/dashboard' : '/submit');
+                // Navigation is handled by useEffect on user state change
             } else {
                 toast({
                     title: 'Registration failed',
@@ -97,12 +114,10 @@ export default function Signup() {
                         <img src="/logo.png" alt="OpsPilot AI Logo" className="h-16 w-auto" />
                     </motion.div>
                     <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 font-outfit mb-3">
-                        {isMagicLinkSent ? "Link is on the way" : "Build your team hub"}
+                        Join your team hub
                     </h1>
                     <p className="text-slate-500 font-medium">
-                        {isMagicLinkSent
-                            ? "Check your email to finish setting up your account"
-                            : "Collective intelligence for high-performing teams"}
+                        Smart daily reporting for high-performance teams.
                     </p>
                 </div>
 
@@ -134,22 +149,35 @@ export default function Signup() {
                     </div>
 
                     <AnimatePresence mode="wait">
-                        {!isMagicLinkSent ? (
-                            <motion.form
-                                key="signup-form"
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 20 }}
-                                onSubmit={handleSubmit}
-                                className="space-y-6"
-                            >
+                        <motion.form
+                            key="signup-form"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            onSubmit={handleSubmit}
+                            className="space-y-6"
+                        >
+                            <div className="space-y-5">
                                 <div className="space-y-2">
-                                    <label className="text-sm font-bold text-slate-700 ml-1">Team Email Address</label>
+                                    <label className="text-sm font-bold text-slate-700 ml-1">Work Email</label>
                                     <Input
                                         type="email"
                                         placeholder="name@company.com"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
+                                        disabled={isLoading}
+                                        className="h-14 px-5 rounded-2xl border-slate-200 bg-white/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all text-lg"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-bold text-slate-700 ml-1">Password</label>
+                                    <Input
+                                        type="password"
+                                        placeholder="Min. 6 characters"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        disabled={isLoading}
                                         className="h-14 px-5 rounded-2xl border-slate-200 bg-white/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all text-lg"
                                     />
                                 </div>
@@ -163,11 +191,12 @@ export default function Signup() {
                                             exit={{ opacity: 0, x: 10 }}
                                             className="space-y-2"
                                         >
-                                            <label className="text-sm font-bold text-slate-700 ml-1">Company/Team Name</label>
+                                            <label className="text-sm font-bold text-slate-700 ml-1">Team Name</label>
                                             <Input
-                                                placeholder="Engineering Dept"
+                                                placeholder="e.g. Engineering Dept"
                                                 value={teamName}
                                                 onChange={(e) => setTeamName(e.target.value)}
+                                                disabled={isLoading}
                                                 className="h-14 px-5 rounded-2xl border-slate-200 bg-white/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all text-lg"
                                             />
                                         </motion.div>
@@ -181,58 +210,32 @@ export default function Signup() {
                                         >
                                             <label className="text-sm font-bold text-slate-700 ml-1">Unique Team ID</label>
                                             <Input
-                                                placeholder="Ask your manager for this"
+                                                placeholder="Paste shared verification code"
                                                 value={teamId}
                                                 onChange={(e) => setTeamId(e.target.value)}
+                                                disabled={isLoading}
                                                 className="h-14 px-5 rounded-2xl border-slate-200 bg-white/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all text-lg"
                                             />
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
+                            </div>
 
-                                <Button
-                                    type="submit"
-                                    className="w-full h-16 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xl shadow-2xl transition-all hover:scale-[1.01] flex items-center justify-center gap-3"
-                                    disabled={isLoading}
-                                >
-                                    {isLoading ? (
-                                        <Loader2 className="h-6 w-6 animate-spin" />
-                                    ) : (
-                                        <>
-                                            {isManager ? 'Launch My Team' : 'Request Access'}
-                                            <ArrowRight className="h-6 w-6" />
-                                        </>
-                                    )}
-                                </Button>
-                            </motion.form>
-                        ) : (
-                            <motion.div
-                                key="signup-sent"
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="text-center py-6"
+                            <Button
+                                type="submit"
+                                className="w-full h-16 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xl shadow-2xl transition-all hover:scale-[1.01] flex items-center justify-center gap-3"
+                                disabled={isLoading}
                             >
-                                <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-8">
-                                    <ShieldCheck className="w-10 h-10" />
-                                </div>
-                                <h3 className="text-2xl font-bold text-slate-900 mb-4 font-outfit">Confirm your email</h3>
-                                <p className="text-slate-600 font-medium mb-8 leading-relaxed">
-                                    We sent a link to <span className="text-indigo-600 font-bold">{email}</span>.
-                                    Click it to verify your account and join your team.
-                                </p>
-                                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 mb-8">
-                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Status</p>
-                                    <p className="text-sm font-bold text-slate-700">Waiting for verification...</p>
-                                </div>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() => window.location.reload()}
-                                    className="text-indigo-600 hover:bg-indigo-50 font-bold px-6 h-12 rounded-xl"
-                                >
-                                    Used the wrong email? Start over
-                                </Button>
-                            </motion.div>
-                        )}
+                                {isLoading ? (
+                                    <Loader2 className="h-6 w-6 animate-spin" />
+                                ) : (
+                                    <>
+                                        {isManager ? 'Launch My Team' : 'Complete Registration'}
+                                        <ArrowRight className="h-6 w-6" />
+                                    </>
+                                )}
+                            </Button>
+                        </motion.form>
                     </AnimatePresence>
                 </motion.div>
 

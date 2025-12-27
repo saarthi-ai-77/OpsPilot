@@ -5,11 +5,10 @@ import { supabase } from '@/lib/supabase';
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string) => Promise<{ success: boolean; error?: string }>;
-  register: (data: { email: string; isManager: boolean; teamName?: string; teamId?: string }) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (data: { email: string; password: string; isManager: boolean; teamName?: string; teamId?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   isManager: boolean;
-  isMagicLinkSent: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,7 +18,6 @@ const STORAGE_KEY = 'opspilot_user';
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isMagicLinkSent, setIsMagicLinkSent] = useState(false);
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -62,18 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (member) {
         await finalizeLogin(member);
       } else {
-        // 2. No member record? Check for pending signup
-        const pendingStr = localStorage.getItem('opspilot_pending_signup');
-        if (pendingStr) {
-          const pending = JSON.parse(pendingStr);
-          if (pending.email.toLowerCase() === email.toLowerCase()) {
-            await completeRegistration(pending, authId);
-          } else {
-            setIsLoading(false);
-          }
-        } else {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     } catch (err) {
       console.error('Sync user error:', err);
@@ -99,86 +86,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   };
 
-  const completeRegistration = async (pending: any, authId: string) => {
-    console.log('Completing registration for:', pending.email);
+
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      let finalTeamId = pending.teamId;
-
-      if (pending.isManager) {
-        const { data: newTeam, error: teamError } = await supabase
-          .from('teams')
-          .insert({ name: pending.teamName, manager_email: pending.email })
-          .select()
-          .single();
-
-        if (teamError) throw teamError;
-        if (newTeam) finalTeamId = newTeam.id;
-      }
-
-      // We use the authId as the primary key if the table allows, 
-      // but to be safe and compatible with existing auto-inc pk, 
-      // we check if 'id' insert is required or allowed.
-      // Trying to insert without id first to allow db-side generation 
-      // of serial pks, or providing it if the table is set for uuid pks.
-      const memberInsert: any = {
-        email: pending.email,
-        team_id: finalTeamId
-      };
-
-      // If authId is required as PK, we include it. 
-      // If the user's DB has a serial PK, this might fail or be ignored.
-      memberInsert.id = authId;
-
-      const { data: newMember, error: memberError } = await supabase
-        .from('members')
-        .insert(memberInsert)
-        .select()
-        .single();
-
-      if (memberError) {
-        console.error('Member creation error, trying without explicit ID:', memberError);
-        // Fallback: try inserting without explicit ID in case it's a serial PK
-        delete memberInsert.id;
-        const { data: retryMember, error: retryError } = await supabase
-          .from('members')
-          .insert(memberInsert)
-          .select()
-          .single();
-
-        if (retryError) throw retryError;
-        if (retryMember) await finalizeLogin(retryMember);
-      } else if (newMember) {
-        await finalizeLogin(newMember);
-      }
-
-      localStorage.removeItem('opspilot_pending_signup');
-    } catch (error) {
-      console.error('Error completing registration:', error);
-      setIsLoading(false);
-    }
-  };
-
-  const login = async (email: string): Promise<{ success: boolean; error?: string }> => {
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.toLowerCase().trim(),
-        options: {
-          emailRedirectTo: window.location.origin,
-        },
+        password,
       });
 
       if (error) throw error;
 
-      setIsMagicLinkSent(true);
+      if (data.user) {
+        await syncUser(data.user);
+      }
       return { success: true };
     } catch (err: any) {
       console.error('Login error:', err);
-      return { success: false, error: err.message || 'Failed to send magic link.' };
+      return { success: false, error: err.message || 'Invalid email or password.' };
     }
   };
 
-  const register = async ({ email, isManager, teamName, teamId }: {
+  const register = async ({ email, password, isManager, teamName, teamId }: {
     email: string;
+    password: string;
     isManager: boolean;
     teamName?: string;
     teamId?: string
@@ -191,35 +121,91 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!isManager && !teamId) return { success: false, error: 'Team ID is required.' };
 
       if (!isManager) {
-        const { data: team } = await supabase.from('teams').select('id').eq('id', teamId).single();
-        if (!team) return { success: false, error: 'Team not found.' };
+        const { data: team, error: teamVerifyError } = await supabase.from('teams').select('id').eq('id', teamId).single();
+        if (teamVerifyError) {
+          if (teamVerifyError.code === 'PGRST116') return { success: false, error: 'Team not found.' };
+          throw teamVerifyError;
+        }
       }
 
-      // Save pending signup info
-      localStorage.setItem('opspilot_pending_signup', JSON.stringify({
+      // 1. Supabase Auth Signup
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: normalizedEmail,
-        isManager,
-        teamName,
-        teamId
-      }));
-
-      const { error } = await supabase.auth.signInWithOtp({
-        email: normalizedEmail,
-        options: {
-          emailRedirectTo: window.location.origin,
-          data: {
-            is_manager: isManager
-          }
-        },
+        password,
       });
 
-      if (error) throw error;
+      if (authError) {
+        // Return a generic message if email exists to prevent enumeration
+        if (authError.status === 422 || authError.message.toLowerCase().includes('already registered')) {
+          return { success: false, error: 'Registration failed. If you already have an account, please sign in.' };
+        }
+        throw authError;
+      }
 
-      setIsMagicLinkSent(true);
+      if (!authData.user) throw new Error('Failed to create user account.');
+
+      const authId = authData.user.id;
+
+      // 2. Create Team/Member records immediately (Idempotent for recovery)
+      let finalTeamId = teamId;
+
+      if (isManager) {
+        // Check if team already exists for this manager (Recovery case)
+        const { data: existingTeam, error: teamCheckError } = await supabase
+          .from('teams')
+          .select('id')
+          .eq('manager_email', normalizedEmail)
+          .single();
+
+        if (teamCheckError && teamCheckError.code !== 'PGRST116') throw teamCheckError;
+
+        if (existingTeam) {
+          finalTeamId = existingTeam.id;
+        } else {
+          const { data: newTeam, error: teamError } = await supabase
+            .from('teams')
+            .insert({ name: teamName, manager_email: normalizedEmail })
+            .select()
+            .single();
+
+          if (teamError) throw teamError;
+          if (newTeam) finalTeamId = newTeam.id;
+        }
+      }
+
+      // Check if member already exists (Recovery case)
+      const { data: existingMember, error: memberCheckError } = await supabase
+        .from('members')
+        .select('id')
+        .eq('id', authId)
+        .single();
+
+      if (memberCheckError && memberCheckError.code !== 'PGRST116') throw memberCheckError;
+
+      if (!existingMember) {
+        const { error: memberError } = await supabase
+          .from('members')
+          .insert({
+            id: authId,
+            email: normalizedEmail,
+            team_id: finalTeamId
+          });
+
+        if (memberError) {
+          console.error('Member creation error:', memberError);
+          throw memberError;
+        }
+      }
+
+      // If user is immediately signed in
+      if (authData.session) {
+        await syncUser(authData.user);
+      }
+
       return { success: true };
     } catch (err: any) {
       console.error('Registration error:', err);
-      return { success: false, error: err.message || 'Failed to send magic link.' };
+      return { success: false, error: err.message || 'Failed to register account.' };
     }
   };
 
@@ -237,7 +223,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         isManager: user?.role === 'manager',
-        isMagicLinkSent,
       }}
     >
       {children}
