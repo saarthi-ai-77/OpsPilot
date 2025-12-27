@@ -3,10 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Zap } from 'lucide-react';
+import { Loader2, Zap, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Variants, motion, AnimatePresence } from 'framer-motion';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -21,7 +20,7 @@ export default function Login() {
     if (!email.trim()) {
       toast({
         title: 'Email required',
-        description: 'Please enter your email address.',
+        description: 'Please enter your email address to continue.',
         variant: 'destructive',
       });
       return;
@@ -35,13 +34,13 @@ export default function Login() {
       if (result.success) {
         toast({
           title: 'Welcome back!',
-          description: 'You have been logged in successfully.',
+          description: 'Access granted to OpsPilot dashboard.',
         });
         navigate('/submit');
       } else {
         toast({
-          title: 'Login failed',
-          description: result.error || 'Something went wrong.',
+          title: 'Access Denied',
+          description: result.error || 'User not found in team database.',
           variant: 'destructive',
         });
       }
@@ -51,62 +50,106 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center space-y-2">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="p-2 rounded-lg bg-primary">
-              <Zap className="h-8 w-8 text-primary-foreground" />
-            </div>
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            OpsPilot AI
+    <div className="min-h-screen flex items-center justify-center gradient-bg p-6 relative overflow-hidden">
+      {/* Background blobs */}
+      <div className="absolute top-1/4 left-1/4 -translate-x-1/2 w-[500px] h-[500px] bg-indigo-200/40 rounded-full blur-[120px] -z-10" />
+      <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 w-[500px] h-[500px] bg-blue-200/40 rounded-full blur-[120px] -z-10" />
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="w-full max-w-[440px]"
+      >
+        <div className="text-center mb-10">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+            className="inline-flex items-center justify-center p-3 rounded-2xl bg-indigo-600 shadow-xl shadow-indigo-200 mb-6"
+          >
+            <Zap className="h-8 w-8 text-white" />
+          </motion.div>
+          <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 font-outfit mb-2">
+            Welcome back
           </h1>
-          <p className="text-muted-foreground">
-            Daily operations tracking for small teams
+          <p className="text-slate-500 font-medium">
+            Sign in to manage your daily operations
           </p>
         </div>
 
-        <Card className="border-border shadow-lg">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-xl">Sign in</CardTitle>
-            <CardDescription>
-              Enter your email to continue
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+        <motion.div
+          layout
+          className="glass-card rounded-[2rem] p-8 md:p-10 premium-shadow relative overflow-hidden group"
+        >
+          <div className="absolute top-0 right-0 p-1 bg-indigo-600/5 rounded-bl-2xl">
+            <ShieldCheck className="w-4 h-4 text-indigo-400" />
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2.5">
+              <label
+                htmlFor="email"
+                className="text-sm font-bold text-slate-700 ml-1 flex items-center gap-2"
+              >
+                Team Email Address
+              </label>
+              <div className="relative group">
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@company.com"
+                  placeholder="name@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isLoading}
-                  className="h-11"
+                  className="h-14 px-5 rounded-2xl border-slate-200 bg-white/50 focus:bg-white focus:ring-indigo-500 focus:border-indigo-500 transition-all text-lg placeholder:text-slate-300"
                 />
               </div>
+            </div>
 
-              <Button
-                type="submit"
-                className="w-full h-11 border-none bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md"
-                disabled={isLoading}
-              >
+            <Button
+              type="submit"
+              className="w-full h-14 rounded-2xl border-none bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg shadow-lg shadow-indigo-100 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              disabled={isLoading}
+            >
+              <AnimatePresence mode="wait">
                 {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in...
-                  </>
+                  <motion.div
+                    key="loading"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center gap-2"
+                  >
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Verifying...
+                  </motion.div>
                 ) : (
-                  'Continue'
+                  <motion.div
+                    key="submit"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center gap-2"
+                  >
+                    Continue to Dashboard
+                    <ArrowRight className="h-5 w-5" />
+                  </motion.div>
                 )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+              </AnimatePresence>
+            </Button>
+          </form>
+        </motion.div>
+
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="text-center mt-8 text-slate-400 text-sm font-medium"
+        >
+          Secured by OpsPilot Auth Systems
+        </motion.p>
+      </motion.div>
     </div>
   );
 }
