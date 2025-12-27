@@ -1,29 +1,23 @@
 export interface User {
   id: string;
   email: string;
-  name: string;
+  team_id: string;
   role: 'member' | 'manager';
-  teamId: string;
-  teamName: string;
 }
 
 export interface DailyUpdate {
   id: string;
-  userId: string;
-  userName: string;
-  teamId: string;
-  date: string;
-  workDone: string;
+  team_id: string;
+  member_id: string;
+  work_done: string;
   blockers: string;
-  confidence: 'low' | 'medium' | 'high';
-  submittedAt: string;
+  confidence: 'Low' | 'Medium' | 'High';
+  date: string;
 }
 
 export interface TeamSummary {
   id: string;
-  teamId: string;
-  teamName: string;
+  team_id: string;
   date: string;
-  summary: string;
-  generatedAt: string;
+  summary_text: string;
 }

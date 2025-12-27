@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '@/types';
+import { supabase } from '@/lib/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -12,26 +13,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'opspilot_user';
-
-// Demo users for the portfolio project
-const DEMO_USERS: Record<string, User> = {
-  'manager@demo.com': {
-    id: '1',
-    email: 'manager@demo.com',
-    name: 'Alex Manager',
-    role: 'manager',
-    teamId: 'team-1',
-    teamName: 'Engineering Team',
-  },
-  'member@demo.com': {
-    id: '2',
-    email: 'member@demo.com',
-    name: 'Jordan Developer',
-    role: 'member',
-    teamId: 'team-1',
-    teamName: 'Engineering Team',
-  },
-};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -50,29 +31,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string): Promise<{ success: boolean; error?: string }> => {
-    const normalizedEmail = email.toLowerCase().trim();
-    
-    // Check demo users first
-    if (DEMO_USERS[normalizedEmail]) {
-      const demoUser = DEMO_USERS[normalizedEmail];
-      setUser(demoUser);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(demoUser));
+    try {
+      const normalizedEmail = email.toLowerCase().trim();
+
+      const { data: member, error } = await supabase
+        .from('members')
+        .select('id, email, team_id')
+        .eq('email', normalizedEmail)
+        .single();
+
+      if (error || !member) {
+        return { success: false, error: 'User not found. Please check your email or contact your manager.' };
+      }
+
+      // Check if they are a manager in the teams table
+      const { data: team } = await supabase
+        .from('teams')
+        .select('manager_email')
+        .eq('id', member.team_id)
+        .single();
+
+      const role = team?.manager_email === normalizedEmail ? 'manager' : 'member';
+
+      const userData: User = {
+        id: member.id,
+        email: member.email,
+        team_id: member.team_id,
+        role: role,
+      };
+
+      setUser(userData);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
       return { success: true };
+    } catch (err) {
+      console.error('Login error:', err);
+      return { success: false, error: 'An error occurred during login.' };
     }
-
-    // For any other email, create a member user
-    const newUser: User = {
-      id: crypto.randomUUID(),
-      email: normalizedEmail,
-      name: normalizedEmail.split('@')[0],
-      role: 'member',
-      teamId: 'team-1',
-      teamName: 'Engineering Team',
-    };
-
-    setUser(newUser);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
-    return { success: true };
   };
 
   const logout = () => {

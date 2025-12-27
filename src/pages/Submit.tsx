@@ -7,23 +7,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { getUpdatesByUserAndDate, saveUpdate, getTodayDate, formatDate } from '@/lib/storage';
+import { submitUpdate } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { DailyUpdate } from '@/types';
 import { Loader2, CheckCircle2, LogOut, LayoutDashboard, Zap } from 'lucide-react';
+import { format } from 'date-fns';
 
 export default function Submit() {
   const { user, logout, isManager } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [workDone, setWorkDone] = useState('');
   const [blockers, setBlockers] = useState('');
-  const [confidence, setConfidence] = useState<'low' | 'medium' | 'high'>('medium');
+  const [confidence, setConfidence] = useState<'Low' | 'Medium' | 'High'>('Medium');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasSubmittedToday, setHasSubmittedToday] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [existingUpdate, setExistingUpdate] = useState<DailyUpdate | null>(null);
 
-  const today = getTodayDate();
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   useEffect(() => {
     if (!user) {
@@ -31,11 +33,26 @@ export default function Submit() {
       return;
     }
 
-    const existing = getUpdatesByUserAndDate(user.id, today);
-    if (existing) {
-      setHasSubmittedToday(true);
-      setExistingUpdate(existing);
-    }
+    const checkExisting = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('daily_updates')
+          .select('*')
+          .eq('member_id', user.id)
+          .eq('date', today)
+          .single();
+
+        if (data) {
+          setExistingUpdate(data as DailyUpdate);
+        }
+      } catch (err) {
+        console.error('Error checking existing update:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkExisting();
   }, [user, navigate, today]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,31 +70,33 @@ export default function Submit() {
     setIsSubmitting(true);
 
     try {
-      const update: DailyUpdate = {
-        id: crypto.randomUUID(),
-        userId: user!.id,
-        userName: user!.name,
-        teamId: user!.teamId,
-        date: today,
-        workDone: workDone.trim(),
+      await submitUpdate({
+        member_id: user!.id,
+        team_id: user!.team_id,
+        work_done: workDone.trim(),
         blockers: blockers.trim(),
         confidence,
-        submittedAt: new Date().toISOString(),
-      };
-
-      saveUpdate(update);
+      });
 
       toast({
         title: 'Update submitted!',
         description: 'Your daily update has been recorded.',
       });
 
-      setHasSubmittedToday(true);
-      setExistingUpdate(update);
-    } catch {
+      // Refresh existing update state
+      setExistingUpdate({
+        id: 'new', // Placeholder since it's just for display
+        member_id: user!.id,
+        team_id: user!.team_id,
+        work_done: workDone.trim(),
+        blockers: blockers.trim(),
+        confidence,
+        date: today,
+      });
+    } catch (error: any) {
       toast({
         title: 'Submission failed',
-        description: 'Something went wrong. Please try again.',
+        description: error.message || 'Something went wrong. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -90,154 +109,170 @@ export default function Submit() {
     navigate('/login');
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   if (!user) return null;
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between font-sans">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-md bg-primary">
               <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="font-semibold text-foreground">OpsPilot AI</span>
+            <span className="font-bold text-lg tracking-tight text-foreground">OpsPilot AI</span>
           </div>
-          
+
           <div className="flex items-center gap-3">
             {isManager && (
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => navigate('/dashboard')}
+                className="hidden sm:flex"
               >
                 <LayoutDashboard className="h-4 w-4 mr-2" />
                 Dashboard
               </Button>
             )}
-            <div className="text-sm text-muted-foreground hidden sm:block">
-              {user.name}
+            <div className="text-sm font-medium text-muted-foreground hidden sm:block">
+              {user.email}
             </div>
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground mb-1">
+      <main className="container mx-auto px-4 py-12 max-w-2xl">
+        <div className="mb-10">
+          <h1 className="text-4xl font-extrabold text-foreground tracking-tight mb-2">
             Daily Update
           </h1>
-          <p className="text-muted-foreground">
-            {formatDate(today)}
+          <p className="text-lg text-muted-foreground">
+            {format(new Date(), 'PPPP')}
           </p>
         </div>
 
-        {hasSubmittedToday && existingUpdate ? (
-          <Card className="border-success/50 bg-success/5">
+        {existingUpdate ? (
+          <Card className="border-green-200 bg-green-50/50 shadow-sm overflow-hidden">
+            <div className="h-1 bg-green-500" />
             <CardHeader>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-success" />
-                <CardTitle className="text-lg">Already Submitted</CardTitle>
+                <CheckCircle2 className="h-6 w-6 text-green-600" />
+                <CardTitle className="text-xl text-green-900">Successfully Submitted</CardTitle>
               </div>
-              <CardDescription>
-                You've already submitted your update for today.
+              <CardDescription className="text-green-700">
+                You've already completed your standup for today. Great job!
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label className="text-muted-foreground text-sm">What you worked on</Label>
-                <p className="mt-1 text-foreground">{existingUpdate.workDone}</p>
+            <CardContent className="space-y-6 pt-2">
+              <div className="bg-white p-4 rounded-lg border border-green-100">
+                <Label className="text-green-800 font-bold text-xs uppercase tracking-wider">What you worked on</Label>
+                <p className="mt-2 text-foreground leading-relaxed">{existingUpdate.work_done}</p>
               </div>
-              
+
               {existingUpdate.blockers && (
-                <div>
-                  <Label className="text-muted-foreground text-sm">Blockers</Label>
-                  <p className="mt-1 text-foreground">{existingUpdate.blockers}</p>
+                <div className="bg-white p-4 rounded-lg border border-green-100">
+                  <Label className="text-amber-800 font-bold text-xs uppercase tracking-wider">Blockers</Label>
+                  <p className="mt-2 text-foreground leading-relaxed">{existingUpdate.blockers}</p>
                 </div>
               )}
-              
-              <div>
-                <Label className="text-muted-foreground text-sm">Confidence level</Label>
-                <p className="mt-1 text-foreground capitalize">{existingUpdate.confidence}</p>
+
+              <div className="flex items-center gap-3">
+                <Label className="text-muted-foreground font-medium text-sm">Confidence Level:</Label>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase ${existingUpdate.confidence === 'High' ? 'bg-green-100 text-green-700' :
+                    existingUpdate.confidence === 'Medium' ? 'bg-amber-100 text-amber-700' :
+                      'bg-red-100 text-red-700'
+                  }`}>
+                  {existingUpdate.confidence}
+                </span>
               </div>
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Submit Your Update</CardTitle>
+          <Card className="shadow-xl border-border/50">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-2xl">Team Check-in</CardTitle>
               <CardDescription>
-                Share what you accomplished today with your team.
+                Briefly share your progress and any hurdles you're facing.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="workDone">
+              <form onSubmit={handleSubmit} className="space-y-8">
+                <div className="space-y-3">
+                  <Label htmlFor="workDone" className="text-base font-semibold">
                     What did you work on today? <span className="text-destructive">*</span>
                   </Label>
                   <Textarea
                     id="workDone"
-                    placeholder="Describe your accomplishments, tasks completed, progress made..."
+                    placeholder="Describe your accomplishments, tasks completed..."
                     value={workDone}
                     onChange={(e) => setWorkDone(e.target.value)}
                     disabled={isSubmitting}
-                    rows={4}
-                    className="resize-none"
+                    rows={5}
+                    className="resize-none text-base border-muted-foreground/20 focus-visible:ring-blue-500"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Minimum 10 characters
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    {workDone.length < 10 ? (
+                      <span className="text-amber-600">Minimum 10 characters ({workDone.length}/10)</span>
+                    ) : (
+                      <span className="text-green-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Ready to submit</span>
+                    )}
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="blockers">Any blockers?</Label>
+                <div className="space-y-3">
+                  <Label htmlFor="blockers" className="text-base font-semibold">Any blockers?</Label>
                   <Textarea
                     id="blockers"
-                    placeholder="Describe any challenges, dependencies, or obstacles..."
+                    placeholder="Describe any challenges or obstacles..."
                     value={blockers}
                     onChange={(e) => setBlockers(e.target.value)}
                     disabled={isSubmitting}
                     rows={3}
-                    className="resize-none"
+                    className="resize-none border-muted-foreground/20 focus-visible:ring-blue-500"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="confidence">Confidence level</Label>
-                  <Select 
-                    value={confidence} 
-                    onValueChange={(v) => setConfidence(v as 'low' | 'medium' | 'high')}
+                <div className="space-y-3">
+                  <Label htmlFor="confidence" className="text-base font-semibold">Confidence Level</Label>
+                  <Select
+                    value={confidence}
+                    onValueChange={(v) => setConfidence(v as 'Low' | 'Medium' | 'High')}
                     disabled={isSubmitting}
                   >
-                    <SelectTrigger id="confidence" className="w-full">
+                    <SelectTrigger id="confidence" className="w-full h-11 border-muted-foreground/20">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="low">🔴 Low</SelectItem>
-                      <SelectItem value="medium">🟡 Medium</SelectItem>
-                      <SelectItem value="high">🟢 High</SelectItem>
+                      <SelectItem value="Low">🔴 Low - I might need help</SelectItem>
+                      <SelectItem value="Medium">🟡 Medium - Doing okay</SelectItem>
+                      <SelectItem value="High">🟢 High - Everything is on track</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">
-                    How confident are you about tomorrow's progress?
-                  </p>
                 </div>
 
-                <Button 
-                  type="submit" 
-                  className="w-full h-11"
+                <Button
+                  type="submit"
+                  className="w-full h-12 text-base font-bold bg-blue-600 hover:bg-blue-700 transition-colors shadow-lg"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Submitting...
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Submitting update...
                     </>
                   ) : (
-                    'Submit Update'
+                    'Submit Daily Update'
                   )}
                 </Button>
               </form>

@@ -17,7 +17,7 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email.trim()) {
       toast({
         title: 'Email required',
@@ -28,10 +28,10 @@ export default function Login() {
     }
 
     setIsLoading(true);
-    
+
     try {
       const result = await login(email);
-      
+
       if (result.success) {
         toast({
           title: 'Welcome back!',
@@ -88,10 +88,10 @@ export default function Login() {
                   className="h-11"
                 />
               </div>
-              
-              <Button 
-                type="submit" 
-                className="w-full h-11" 
+
+              <Button
+                type="submit"
+                className="w-full h-11 border-none bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -104,20 +104,6 @@ export default function Login() {
                 )}
               </Button>
             </form>
-
-            <div className="mt-6 p-4 rounded-lg bg-muted">
-              <p className="text-sm text-muted-foreground mb-2">
-                <strong>Demo accounts:</strong>
-              </p>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>
-                  <code className="text-foreground">manager@demo.com</code> — Manager view
-                </li>
-                <li>
-                  <code className="text-foreground">member@demo.com</code> — Team member
-                </li>
-              </ul>
-            </div>
           </CardContent>
         </Card>
       </div>
