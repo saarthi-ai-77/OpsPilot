@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   LogOut,
   LayoutDashboard,
-  Zap,
   Calendar,
   AlertCircle,
   Quote,
@@ -130,11 +129,10 @@ export default function Submit() {
     return (
       <div className="min-h-screen flex items-center justify-center gradient-bg">
         <motion.div
-          animate={{ scale: [1, 1.1, 1], rotate: [0, 90, 0] }}
+          animate={{ scale: [1, 1.05, 1] }}
           transition={{ duration: 2, repeat: Infinity }}
-          className="p-3 rounded-2xl bg-indigo-600 shadow-xl"
         >
-          <Zap className="h-8 w-8 text-white" />
+          <img src="/logo.png" alt="Loading Logo" className="h-16 w-auto" />
         </motion.div>
       </div>
     );
@@ -148,13 +146,12 @@ export default function Submit() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <motion.div
-              whileHover={{ rotate: 15 }}
-              className="p-2 rounded-xl bg-indigo-600 shadow-lg shadow-indigo-100 cursor-pointer"
+              whileHover={{ scale: 1.05 }}
+              className="cursor-pointer"
               onClick={() => navigate('/')}
             >
-              <Zap className="h-5 w-5 text-white" />
+              <img src="/logo.png" alt="Logo" className="h-10 w-auto" />
             </motion.div>
-            <span className="font-bold text-xl tracking-tight text-slate-900 font-outfit hidden sm:block">OpsPilot AI</span>
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">

@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Zap, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Loader2, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Variants, motion, AnimatePresence } from 'framer-motion';
 
 export default function Login() {
@@ -66,9 +66,9 @@ export default function Login() {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="inline-flex items-center justify-center p-3 rounded-2xl bg-indigo-600 shadow-xl shadow-indigo-200 mb-6"
+            className="mb-6 flex justify-center"
           >
-            <Zap className="h-8 w-8 text-white" />
+            <img src="/logo.png" alt="OpsPilot AI Logo" className="h-20 w-auto" />
           </motion.div>
           <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 font-outfit mb-2">
             Welcome back

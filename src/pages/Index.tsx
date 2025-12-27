@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Zap, ArrowRight, CheckCircle, BarChart3, Shield, Sparkles } from 'lucide-react';
+import { ArrowRight, CheckCircle, BarChart3, Shield, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Index() {
@@ -39,12 +39,11 @@ export default function Index() {
           <motion.div
             initial={{ x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => navigate('/')}
           >
-            <div className="p-2 rounded-xl bg-indigo-600 shadow-lg shadow-indigo-200">
-              <Zap className="h-5 w-5 text-white" />
-            </div>
-            <span className="font-bold text-xl tracking-tight text-slate-900 font-outfit">OpsPilot AI</span>
+            <img src="/logo.png" alt="OpsPilot AI Logo" className="h-10 w-auto" />
+            <span className="font-bold text-xl tracking-tight text-slate-900 font-outfit hidden">OpsPilot AI</span>
           </motion.div>
 
           <motion.div
@@ -211,10 +210,7 @@ export default function Index() {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-indigo-600">
-                <Zap className="h-5 w-5 text-white" />
-              </div>
-              <span className="font-bold text-xl tracking-tight text-slate-900 font-outfit">OpsPilot AI</span>
+              <img src="/logo.png" alt="OpsPilot AI Logo" className="h-10 w-auto" />
             </div>
             <div className="text-slate-400 font-medium text-center">
               © 2025 OpsPilot AI. Built for the future of work.

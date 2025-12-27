@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { getSummary } from '@/lib/api';
-import { CalendarIcon, LogOut, FileText, Zap, Loader2, Sparkles, TrendingUp, AlertTriangle, CheckCircle2, ArrowRight } from 'lucide-react';
+import { CalendarIcon, LogOut, FileText, Loader2, Sparkles, TrendingUp, AlertTriangle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
@@ -76,13 +76,12 @@ export default function Dashboard() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <motion.div
-              whileHover={{ rotate: 15 }}
-              className="p-2 rounded-xl bg-indigo-600 shadow-lg shadow-indigo-100 cursor-pointer"
+              whileHover={{ scale: 1.05 }}
+              className="cursor-pointer"
               onClick={() => navigate('/')}
             >
-              <Zap className="h-5 w-5 text-white" />
+              <img src="/logo.png" alt="Logo" className="h-10 w-auto" />
             </motion.div>
-            <span className="font-bold text-xl tracking-tight text-slate-900 font-outfit hidden sm:block">OpsPilot AI</span>
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
