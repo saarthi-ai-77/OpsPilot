@@ -14,7 +14,7 @@ export default function Signup() {
     const [teamId, setTeamId] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const { register } = useAuth();
+    const { register, isMagicLinkSent } = useAuth();
     const navigate = useNavigate();
     const { toast } = useToast();
 
@@ -97,10 +97,12 @@ export default function Signup() {
                         <img src="/logo.png" alt="OpsPilot AI Logo" className="h-16 w-auto" />
                     </motion.div>
                     <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 font-outfit mb-3">
-                        Build your team hub
+                        {isMagicLinkSent ? "Link is on the way" : "Build your team hub"}
                     </h1>
                     <p className="text-slate-500 font-medium">
-                        Collective intelligence for high-performing teams
+                        {isMagicLinkSent
+                            ? "Check your email to finish setting up your account"
+                            : "Collective intelligence for high-performing teams"}
                     </p>
                 </div>
 
@@ -127,69 +129,111 @@ export default function Signup() {
                     layout
                     className="glass-card rounded-[2.5rem] p-8 md:p-10 premium-shadow relative overflow-hidden"
                 >
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-slate-700 ml-1">Team Email Address</label>
-                            <Input
-                                type="email"
-                                placeholder="name@company.com"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="h-14 px-5 rounded-2xl border-slate-200 bg-white/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all text-lg"
-                            />
-                        </div>
+                    <div className="absolute top-0 right-0 p-1 bg-indigo-600/5 rounded-bl-2xl">
+                        <ShieldCheck className="w-4 h-4 text-indigo-400" />
+                    </div>
 
-                        <AnimatePresence mode="wait">
-                            {isManager ? (
-                                <motion.div
-                                    key="manager"
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: 10 }}
-                                    className="space-y-2"
-                                >
-                                    <label className="text-sm font-bold text-slate-700 ml-1">Company/Team Name</label>
+                    <AnimatePresence mode="wait">
+                        {!isMagicLinkSent ? (
+                            <motion.form
+                                key="signup-form"
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 20 }}
+                                onSubmit={handleSubmit}
+                                className="space-y-6"
+                            >
+                                <div className="space-y-2">
+                                    <label className="text-sm font-bold text-slate-700 ml-1">Team Email Address</label>
                                     <Input
-                                        placeholder="Engineering Dept"
-                                        value={teamName}
-                                        onChange={(e) => setTeamName(e.target.value)}
+                                        type="email"
+                                        placeholder="name@company.com"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
                                         className="h-14 px-5 rounded-2xl border-slate-200 bg-white/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all text-lg"
                                     />
-                                </motion.div>
-                            ) : (
-                                <motion.div
-                                    key="member"
-                                    initial={{ opacity: 0, x: 10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: -10 }}
-                                    className="space-y-2"
-                                >
-                                    <label className="text-sm font-bold text-slate-700 ml-1">Unique Team ID</label>
-                                    <Input
-                                        placeholder="Ask your manager for this"
-                                        value={teamId}
-                                        onChange={(e) => setTeamId(e.target.value)}
-                                        className="h-14 px-5 rounded-2xl border-slate-200 bg-white/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all text-lg"
-                                    />
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                                </div>
 
-                        <Button
-                            type="submit"
-                            className="w-full h-16 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xl shadow-2xl transition-all hover:scale-[1.01] flex items-center justify-center gap-3"
-                            disabled={isLoading}
-                        >
-                            {isLoading ? (
-                                <Loader2 className="h-6 w-6 animate-spin" />
-                            ) : (
-                                <>
-                                    {isManager ? 'Launch My Team' : 'Request Access'}
-                                    <ArrowRight className="h-6 w-6" />
-                                </>
-                            )}
-                        </Button>
-                    </form>
+                                <AnimatePresence mode="wait">
+                                    {isManager ? (
+                                        <motion.div
+                                            key="manager"
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: 10 }}
+                                            className="space-y-2"
+                                        >
+                                            <label className="text-sm font-bold text-slate-700 ml-1">Company/Team Name</label>
+                                            <Input
+                                                placeholder="Engineering Dept"
+                                                value={teamName}
+                                                onChange={(e) => setTeamName(e.target.value)}
+                                                className="h-14 px-5 rounded-2xl border-slate-200 bg-white/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all text-lg"
+                                            />
+                                        </motion.div>
+                                    ) : (
+                                        <motion.div
+                                            key="member"
+                                            initial={{ opacity: 0, x: 10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: -10 }}
+                                            className="space-y-2"
+                                        >
+                                            <label className="text-sm font-bold text-slate-700 ml-1">Unique Team ID</label>
+                                            <Input
+                                                placeholder="Ask your manager for this"
+                                                value={teamId}
+                                                onChange={(e) => setTeamId(e.target.value)}
+                                                className="h-14 px-5 rounded-2xl border-slate-200 bg-white/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all text-lg"
+                                            />
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+                                <Button
+                                    type="submit"
+                                    className="w-full h-16 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xl shadow-2xl transition-all hover:scale-[1.01] flex items-center justify-center gap-3"
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? (
+                                        <Loader2 className="h-6 w-6 animate-spin" />
+                                    ) : (
+                                        <>
+                                            {isManager ? 'Launch My Team' : 'Request Access'}
+                                            <ArrowRight className="h-6 w-6" />
+                                        </>
+                                    )}
+                                </Button>
+                            </motion.form>
+                        ) : (
+                            <motion.div
+                                key="signup-sent"
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="text-center py-6"
+                            >
+                                <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-8">
+                                    <ShieldCheck className="w-10 h-10" />
+                                </div>
+                                <h3 className="text-2xl font-bold text-slate-900 mb-4 font-outfit">Confirm your email</h3>
+                                <p className="text-slate-600 font-medium mb-8 leading-relaxed">
+                                    We sent a link to <span className="text-indigo-600 font-bold">{email}</span>.
+                                    Click it to verify your account and join your team.
+                                </p>
+                                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 mb-8">
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Status</p>
+                                    <p className="text-sm font-bold text-slate-700">Waiting for verification...</p>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => window.location.reload()}
+                                    className="text-indigo-600 hover:bg-indigo-50 font-bold px-6 h-12 rounded-xl"
+                                >
+                                    Used the wrong email? Start over
+                                </Button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </motion.div>
 
                 <motion.div

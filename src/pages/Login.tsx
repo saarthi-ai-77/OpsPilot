@@ -10,7 +10,7 @@ import { Variants, motion, AnimatePresence } from 'framer-motion';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, isMagicLinkSent } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -67,14 +67,17 @@ export default function Login() {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
             className="mb-6 flex justify-center"
+            onClick={() => navigate('/')}
           >
-            <img src="/logo.png" alt="OpsPilot AI Logo" className="h-20 w-auto" />
+            <img src="/logo.png" alt="OpsPilot AI Logo" className="h-20 w-auto cursor-pointer" />
           </motion.div>
           <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 font-outfit mb-2">
-            Welcome back
+            {isMagicLinkSent ? "Check your inbox" : "Welcome back"}
           </h1>
           <p className="text-slate-500 font-medium">
-            Sign in to manage your daily operations
+            {isMagicLinkSent
+              ? `We sent a magic link to ${email}`
+              : "Sign in to manage your daily operations"}
           </p>
         </div>
 
@@ -86,59 +89,96 @@ export default function Login() {
             <ShieldCheck className="w-4 h-4 text-indigo-400" />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2.5">
-              <label
-                htmlFor="email"
-                className="text-sm font-bold text-slate-700 ml-1 flex items-center gap-2"
+          <AnimatePresence mode="wait">
+            {!isMagicLinkSent ? (
+              <motion.form
+                key="login-form"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                onSubmit={handleSubmit}
+                className="space-y-6"
               >
-                Team Email Address
-              </label>
-              <div className="relative group">
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading}
-                  className="h-14 px-5 rounded-2xl border-slate-200 bg-white/50 focus:bg-white focus:ring-indigo-500 focus:border-indigo-500 transition-all text-lg placeholder:text-slate-300"
-                />
-              </div>
-            </div>
+                <div className="space-y-2.5">
+                  <label
+                    htmlFor="email"
+                    className="text-sm font-bold text-slate-700 ml-1 flex items-center gap-2"
+                  >
+                    Team Email Address
+                  </label>
+                  <div className="relative group">
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="name@company.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={isLoading}
+                      className="h-14 px-5 rounded-2xl border-slate-200 bg-white/50 focus:bg-white focus:ring-indigo-500 focus:border-indigo-500 transition-all text-lg placeholder:text-slate-300"
+                    />
+                  </div>
+                </div>
 
-            <Button
-              type="submit"
-              className="w-full h-14 rounded-2xl border-none bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg shadow-lg shadow-indigo-100 transition-all hover:scale-[1.02] active:scale-[0.98]"
-              disabled={isLoading}
-            >
-              <AnimatePresence mode="wait">
-                {isLoading ? (
+                <Button
+                  type="submit"
+                  className="w-full h-14 rounded-2xl border-none bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg shadow-lg shadow-indigo-100 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  disabled={isLoading}
+                >
+                  <AnimatePresence mode="wait">
+                    {isLoading ? (
+                      <motion.div
+                        key="loading"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="flex items-center gap-2"
+                      >
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        Verifying...
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="submit"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="flex items-center gap-2"
+                      >
+                        Send Magic Link
+                        <ArrowRight className="h-5 w-5" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </Button>
+              </motion.form>
+            ) : (
+              <motion.div
+                key="email-sent"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center py-4"
+              >
+                <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
                   <motion.div
-                    key="loading"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center gap-2"
+                    animate={{ rotate: [0, 10, -10, 0] }}
+                    transition={{ repeat: Infinity, duration: 2 }}
                   >
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Verifying...
+                    <ShieldCheck className="w-8 h-8" />
                   </motion.div>
-                ) : (
-                  <motion.div
-                    key="submit"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center gap-2"
-                  >
-                    Continue to Dashboard
-                    <ArrowRight className="h-5 w-5" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </Button>
-          </form>
+                </div>
+                <p className="text-slate-600 font-medium mb-6">
+                  Click the link in the email to sign in instantly. You can close this tab now.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => window.location.reload()}
+                  className="rounded-xl border-slate-200"
+                >
+                  Didn't get the email? Try again
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
 
         <motion.div
