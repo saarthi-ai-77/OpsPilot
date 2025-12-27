@@ -116,6 +116,10 @@ export default function Dashboard() {
             <h1 className="text-5xl font-black text-slate-900 tracking-tight font-outfit">
               Command Center
             </h1>
+            <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-lg shadow-sm">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Team ID:</span>
+              <code className="text-sm font-black text-indigo-600 tracking-wider select-all">{user.team_id}</code>
+            </div>
           </motion.div>
 
           <motion.div

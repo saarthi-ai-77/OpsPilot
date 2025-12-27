@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -141,14 +141,22 @@ export default function Login() {
           </form>
         </motion.div>
 
-        <motion.p
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="text-center mt-8 text-slate-400 text-sm font-medium"
+          className="text-center mt-8 space-y-4"
         >
-          Secured by OpsPilot Auth Systems
-        </motion.p>
+          <p className="text-slate-500 font-bold flex items-center justify-center gap-2">
+            First time here?
+            <Link to="/signup" className="text-indigo-600 hover:underline decoration-2 underline-offset-4">
+              Create an account
+            </Link>
+          </p>
+          <p className="text-slate-400 text-xs font-medium uppercase tracking-widest">
+            Secured by OpsPilot Auth Systems
+          </p>
+        </motion.div>
       </motion.div>
     </div>
   );
