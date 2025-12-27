@@ -78,11 +78,18 @@ export default function Signup() {
             });
 
             if (result.success) {
-                toast({
-                    title: 'Account created!',
-                    description: isManager ? 'Your team hub is ready.' : 'You have joined the team.',
-                });
-                // Navigation is handled by useEffect on user state change
+                if (result.requiresVerification) {
+                    toast({
+                        title: 'Verify your email',
+                        description: 'We sent a verification link to your inbox. Please confirm your email to continue.',
+                    });
+                } else {
+                    toast({
+                        title: 'Account created!',
+                        description: isManager ? 'Your team hub is ready.' : 'You have joined the team.',
+                    });
+                }
+                // Navigation is handled by useEffect on user state change (if session exists)
             } else {
                 toast({
                     title: 'Registration failed',

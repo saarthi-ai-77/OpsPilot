@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (data: { email: string; password: string; name: string; isManager: boolean; teamName?: string; teamId?: string }) => Promise<{ success: boolean; error?: string }>;
+  register: (data: { email: string; password: string; name: string; isManager: boolean; teamName?: string; teamId?: string }) => Promise<{ success: boolean; requiresVerification?: boolean; error?: string }>;
   logout: () => void;
   isManager: boolean;
 }
@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('members')
         .select('id, email, team_id')
         .eq('email', email)
-        .single();
+        .maybeSingle();
 
       if (member) {
         await finalizeLogin(member);
@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .from('teams')
       .select('manager_email')
       .eq('id', member.team_id)
-      .single();
+      .maybeSingle();
 
     const role = team?.manager_email === member.email ? 'manager' : 'member';
 
@@ -113,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isManager: boolean;
     teamName?: string;
     teamId?: string
-  }): Promise<{ success: boolean; error?: string }> => {
+  }): Promise<{ success: boolean; requiresVerification?: boolean; error?: string }> => {
     try {
       const normalizedEmail = email.toLowerCase().trim();
 
@@ -138,14 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
       });
 
-      if (authError) {
-        // Return a generic message if email exists to prevent enumeration
-        if (authError.status === 422 || authError.message.toLowerCase().includes('already registered')) {
-          return { success: false, error: 'Registration failed. If you already have an account, please sign in.' };
-        }
-        throw authError;
-      }
-
+      if (authError) throw authError;
       if (!authData.user) throw new Error('Failed to create user account.');
 
       const authId = authData.user.id;
@@ -168,7 +161,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           const { data: newTeam, error: teamError } = await supabase
             .from('teams')
-            .insert({ name: teamName, manager_email: normalizedEmail })
+            .insert({
+              name: teamName,
+              manager_email: normalizedEmail,
+              manager_name: name.trim()
+            })
             .select()
             .single();
 
@@ -205,11 +202,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // If user is immediately signed in
       if (authData.session) {
         await syncUser(authData.user);
+        return { success: true };
       }
 
-      return { success: true };
+      // If session is missing, it means email verification is required
+      return { success: true, requiresVerification: true };
     } catch (err: any) {
       console.error('Registration error:', err);
+
+      // Handle the case where the user already exists (likely from Magic Link era)
+      if (err.status === 422 || err.message?.toLowerCase().includes('already registered')) {
+        return {
+          success: false,
+          error: 'An account with this email already exists. Please try to Sign In instead.'
+        };
+      }
+
       return { success: false, error: err.message || 'Failed to register account.' };
     }
   };
@@ -235,10 +243,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
+};
