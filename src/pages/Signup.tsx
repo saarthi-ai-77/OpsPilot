@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Signup() {
     const [isManager, setIsManager] = useState(true);
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [teamName, setTeamName] = useState('');
@@ -28,10 +29,10 @@ export default function Signup() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!email.trim() || !password.trim()) {
+        if (!name.trim() || !email.trim() || !password.trim()) {
             toast({
-                title: 'Credentials required',
-                description: 'Please enter both email and password.',
+                title: 'Information required',
+                description: 'Please enter your name, email and password.',
                 variant: 'destructive',
             });
             return;
@@ -70,6 +71,7 @@ export default function Signup() {
             const result = await register({
                 email,
                 password,
+                name,
                 isManager,
                 teamName: isManager ? teamName : undefined,
                 teamId: !isManager ? teamId : undefined,
@@ -158,6 +160,17 @@ export default function Signup() {
                             className="space-y-6"
                         >
                             <div className="space-y-5">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-bold text-slate-700 ml-1">Full Name</label>
+                                    <Input
+                                        placeholder="John Doe"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        disabled={isLoading}
+                                        className="h-14 px-5 rounded-2xl border-slate-200 bg-white/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all text-lg"
+                                    />
+                                </div>
+
                                 <div className="space-y-2">
                                     <label className="text-sm font-bold text-slate-700 ml-1">Work Email</label>
                                     <Input

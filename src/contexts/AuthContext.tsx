@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (data: { email: string; password: string; isManager: boolean; teamName?: string; teamId?: string }) => Promise<{ success: boolean; error?: string }>;
+  register: (data: { email: string; password: string; name: string; isManager: boolean; teamName?: string; teamId?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   isManager: boolean;
 }
@@ -106,9 +106,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const register = async ({ email, password, isManager, teamName, teamId }: {
+  const register = async ({ email, password, name, isManager, teamName, teamId }: {
     email: string;
     password: string;
+    name: string;
     isManager: boolean;
     teamName?: string;
     teamId?: string
@@ -121,11 +122,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!isManager && !teamId) return { success: false, error: 'Team ID is required.' };
 
       if (!isManager) {
-        const { data: team, error: teamVerifyError } = await supabase.from('teams').select('id').eq('id', teamId).single();
-        if (teamVerifyError) {
-          if (teamVerifyError.code === 'PGRST116') return { success: false, error: 'Team not found.' };
-          throw teamVerifyError;
-        }
+        const { data: team, error: teamVerifyError } = await supabase
+          .from('teams')
+          .select('id')
+          .eq('id', teamId)
+          .maybeSingle();
+
+        if (teamVerifyError) throw teamVerifyError;
+        if (!team) return { success: false, error: 'Team not found.' };
       }
 
       // 1. Supabase Auth Signup
@@ -155,9 +159,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .from('teams')
           .select('id')
           .eq('manager_email', normalizedEmail)
-          .single();
+          .maybeSingle();
 
-        if (teamCheckError && teamCheckError.code !== 'PGRST116') throw teamCheckError;
+        if (teamCheckError) throw teamCheckError;
 
         if (existingTeam) {
           finalTeamId = existingTeam.id;
@@ -178,9 +182,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('members')
         .select('id')
         .eq('id', authId)
-        .single();
+        .maybeSingle();
 
-      if (memberCheckError && memberCheckError.code !== 'PGRST116') throw memberCheckError;
+      if (memberCheckError) throw memberCheckError;
 
       if (!existingMember) {
         const { error: memberError } = await supabase
@@ -188,6 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .insert({
             id: authId,
             email: normalizedEmail,
+            name: name.trim(),
             team_id: finalTeamId
           });
 
